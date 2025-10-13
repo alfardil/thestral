@@ -44,14 +44,14 @@ const MysteriousAIIcon = () => (
       strokeOpacity="0.3"
       fill="none"
     />
-    
+
     {/* Inner neural network nodes */}
     <circle cx="12" cy="12" r="1.5" fill="currentColor" fillOpacity="0.8" />
     <circle cx="20" cy="12" r="1.5" fill="currentColor" fillOpacity="0.8" />
     <circle cx="16" cy="16" r="1.5" fill="currentColor" fillOpacity="0.8" />
     <circle cx="12" cy="20" r="1.5" fill="currentColor" fillOpacity="0.8" />
     <circle cx="20" cy="20" r="1.5" fill="currentColor" fillOpacity="0.8" />
-    
+
     {/* Connecting lines */}
     <path
       d="M12 12L20 12M12 12L16 16M20 12L16 16M12 20L16 16M20 20L16 16M12 12L12 20M20 12L20 20"
@@ -60,7 +60,7 @@ const MysteriousAIIcon = () => (
       strokeOpacity="0.6"
       strokeLinecap="round"
     />
-    
+
     {/* Central core */}
     <circle
       cx="16"
@@ -71,15 +71,9 @@ const MysteriousAIIcon = () => (
       strokeOpacity="0.4"
       fill="none"
     />
-    
+
     {/* Subtle inner glow */}
-    <circle
-      cx="16"
-      cy="16"
-      r="1"
-      fill="currentColor"
-      fillOpacity="0.3"
-    />
+    <circle cx="16" cy="16" r="1" fill="currentColor" fillOpacity="0.3" />
   </svg>
 );
 
@@ -94,7 +88,7 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
     const handleSubmit = async (e?: React.FormEvent) => {
       e?.preventDefault();
       if (!question.trim()) return;
-      
+
       const currentQuestion = question;
       setQuestion(""); // Clear input immediately
 
@@ -108,7 +102,7 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
       //   question: currentQuestion,
       //   selectedFilePath,
       // });
-      
+
       await analyzeRepoWithRAG({
         owner,
         repo,
@@ -129,7 +123,7 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
     // Auto-resize textarea
     useEffect(() => {
       if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
+        textareaRef.current.style.height = "auto";
         textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
       }
     }, [question]);
@@ -155,16 +149,8 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
 
           {!response && !error && !loading && (
             <div className="flex flex-col items-center space-y-4 text-center mt-16 mb-8">
-              <div className="p-6 rounded-lg border border-white/10 bg-white/5">
-                <MysteriousAIIcon />
-              </div>
               <div className="space-y-2 max-w-[280px]">
-                <p className="text-white text-lg font-medium">
-                  Intelligence awaits
-                </p>
-                <p className="text-white/60 text-sm">
-                  Query the depths of your codebase
-                </p>
+                <p className="text-white/60 text-sm">Query your codebase</p>
               </div>
             </div>
           )}
@@ -177,7 +163,13 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
                     remarkPlugins={[remarkGfm]}
                     components={
                       {
-                        code({ node, inline, className, children, ...props }: any) {
+                        code({
+                          node,
+                          inline,
+                          className,
+                          children,
+                          ...props
+                        }: any) {
                           const match = /language-(\w+)/.exec(className || "");
                           return !inline && match ? (
                             <CodeBlock
@@ -185,54 +177,84 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
                               language={match[1]}
                             />
                           ) : (
-                            <code className="bg-white/10 border border-white/20 rounded px-1.5 py-0.5 text-sm font-mono" {...props}>
+                            <code
+                              className="bg-white/10 border border-white/20 rounded px-1.5 py-0.5 text-sm font-mono"
+                              {...props}
+                            >
                               {children}
                             </code>
                           );
                         },
                         p: ({ children, ...props }: any) => (
-                          <p className="text-white/90 leading-relaxed mb-3 last:mb-0 text-sm" {...props}>
+                          <p
+                            className="text-white/90 leading-relaxed mb-3 last:mb-0 text-sm"
+                            {...props}
+                          >
                             {children}
                           </p>
                         ),
                         h1: ({ children, ...props }: any) => (
-                          <h1 className="text-lg font-semibold text-white mb-3 mt-5 first:mt-0 text-base border-b border-white/10 pb-2" {...props}>
+                          <h1
+                            className="text-lg font-semibold text-white mb-3 mt-5 first:mt-0 text-base border-b border-white/10 pb-2"
+                            {...props}
+                          >
                             {children}
                           </h1>
                         ),
                         h2: ({ children, ...props }: any) => (
-                          <h2 className="text-base font-semibold text-white mb-2 mt-4 first:mt-0 text-sm text-white/90" {...props}>
+                          <h2
+                            className="text-base font-semibold text-white mb-2 mt-4 first:mt-0 text-sm text-white/90"
+                            {...props}
+                          >
                             {children}
                           </h2>
                         ),
                         h3: ({ children, ...props }: any) => (
-                          <h3 className="text-sm font-semibold text-white mb-2 mt-3 first:mt-0 text-xs text-white/80" {...props}>
+                          <h3
+                            className="text-sm font-semibold text-white mb-2 mt-3 first:mt-0 text-xs text-white/80"
+                            {...props}
+                          >
                             {children}
                           </h3>
                         ),
                         ul: ({ children, ...props }: any) => (
-                          <ul className="space-y-2 mb-4 text-white/80 text-sm tracking-tight" {...props}>
+                          <ul
+                            className="space-y-2 mb-4 text-white/80 text-sm tracking-tight"
+                            {...props}
+                          >
                             {children}
                           </ul>
                         ),
                         ol: ({ children, ...props }: any) => (
-                          <ol className="space-y-2 mb-4 text-white/80 text-sm tracking-tight" {...props}>
+                          <ol
+                            className="space-y-2 mb-4 text-white/80 text-sm tracking-tight"
+                            {...props}
+                          >
                             {children}
                           </ol>
                         ),
                         li: ({ children, ...props }: any) => (
-                          <li className="text-white/80 leading-relaxed text-sm tracking-tight flex items-start" {...props}>
+                          <li
+                            className="text-white/80 leading-relaxed text-sm tracking-tight flex items-start"
+                            {...props}
+                          >
                             <span className="text-white/60 mr-2">•</span>
                             <span className="flex-1">{children}</span>
                           </li>
                         ),
                         blockquote: ({ children, ...props }: any) => (
-                          <blockquote className="border-l-2 border-white/20 pl-3 py-2 my-3 bg-white/5 rounded-r text-sm italic" {...props}>
+                          <blockquote
+                            className="border-l-2 border-white/20 pl-3 py-2 my-3 bg-white/5 rounded-r text-sm italic"
+                            {...props}
+                          >
                             {children}
                           </blockquote>
                         ),
                         strong: ({ children, ...props }: any) => (
-                          <strong className="font-semibold text-white" {...props}>
+                          <strong
+                            className="font-semibold text-white"
+                            {...props}
+                          >
                             {children}
                           </strong>
                         ),
@@ -260,9 +282,18 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
                 <div className="flex items-center gap-2">
                   <span className="text-white/80 text-sm">Analyzing</span>
                   <div className="flex space-x-1">
-                    <div className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                    <div className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                    <div className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    <div
+                      className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce"
+                      style={{ animationDelay: "0ms" }}
+                    ></div>
+                    <div
+                      className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce"
+                      style={{ animationDelay: "150ms" }}
+                    ></div>
+                    <div
+                      className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce"
+                      style={{ animationDelay: "300ms" }}
+                    ></div>
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -277,21 +308,21 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
         <form
           onSubmit={handleSubmit}
           className="w-full px-4 py-3 rounded-lg bg-white/5 backdrop-blur-sm border border-white/10 fixed bottom-6 left-1/2 transform -translate-x-1/2 max-w-[360px]"
-          style={{ 
+          style={{
             zIndex: 60,
-            boxShadow: "0 4px 16px 0 rgba(0, 0, 0, 0.3)"
+            boxShadow: "0 4px 16px 0 rgba(0, 0, 0, 0.3)",
           }}
         >
           <textarea
             ref={textareaRef}
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Ask about code..."
+            placeholder="What is the purpose of this project?"
             disabled={loading}
             rows={1}
             className="w-full bg-transparent border-none outline-none text-white placeholder:text-white/40 text-sm resize-none overflow-hidden min-h-[20px] max-h-[120px] tracking-tight leading-normal"
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSubmit();
               }
