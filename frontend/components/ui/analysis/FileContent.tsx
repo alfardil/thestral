@@ -69,7 +69,7 @@ export function FileContent({
             <Spinner />
           </div>
         ) : (
-          <div className="relative">
+          <div className="relative select-text">
             <SyntaxHighlighter
               language={language}
               style={customStyle}
@@ -79,6 +79,10 @@ export function FileContent({
                 background: "transparent",
                 minHeight: "100%",
                 width: "100%",
+                userSelect: "text",
+                WebkitUserSelect: "text",
+                MozUserSelect: "text",
+                msUserSelect: "text",
               }}
               codeTagProps={{
                 style: {
@@ -88,6 +92,10 @@ export function FileContent({
                     'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
                   display: "inline-block",
                   width: "100%",
+                  userSelect: "text",
+                  WebkitUserSelect: "text",
+                  MozUserSelect: "text",
+                  msUserSelect: "text",
                 },
               }}
               className="scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"

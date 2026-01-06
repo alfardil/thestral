@@ -62,11 +62,9 @@ export async function fetchOrgContributorsNumber(
   githubAccessToken: string,
   org: string
 ): Promise<number> {
-  // Use the existing fetchOrgRepos function to get all repos (first 100)
   const reposData = await fetchOrgRepos(githubAccessToken, org, 100, 1);
   const repoNames = reposData.map((repo: any) => repo.name);
 
-  // Helper to fetch contributors for a repo
   async function fetchContributors(repo: string): Promise<string[]> {
     const res = await fetch(
       `https://api.github.com/repos/${org}/${repo}/contributors?per_page=100`,
@@ -79,7 +77,6 @@ export async function fetchOrgContributorsNumber(
     return data.map((contributor: any) => contributor.login);
   }
 
-  // Main logic
   const allContributors: string[] = [];
 
   for (const repo of repoNames) {
@@ -87,7 +84,6 @@ export async function fetchOrgContributorsNumber(
     allContributors.push(...contributors);
   }
 
-  // Get unique contributors
   const uniqueContributors = new Set(allContributors);
   return uniqueContributors.size;
 }
@@ -129,29 +125,84 @@ export async function fetchRecentCommits(
       continue;
     }
 
-    if (event.type === "PushEvent" && event.payload.commits) {
-      for (const commit of event.payload.commits) {
-        const isAuthoredByUser =
-          commit.author.name === user.login ||
-          (user.name && commit.author.name === user.name);
+    if (
+      event.type === "PushEvent" &&
+      event.payload?.head &&
+      event.payload?.before
+    ) {
+      const headSha = event.payload.head;
+      const beforeSha = event.payload.before;
+      const repoName = event.repo.name;
 
-        if (isAuthoredByUser && !addedShas.has(commit.sha)) {
-          recentCommits.push({
-            sha: commit.sha,
-            message: commit.message,
-            repo: event.repo.name,
-            date: event.created_at,
-          });
-          addedShas.add(commit.sha);
+      try {
+        const compareResponse = await fetch(
+          `https://api.github.com/repos/${repoName}/compare/${beforeSha}...${headSha}`,
+          {
+            headers: {
+              Authorization: `Bearer ${githubAccessToken}`,
+            },
+          }
+        );
+
+        if (compareResponse.ok) {
+          const compareData = await compareResponse.json();
+          const commits = compareData.commits || [];
+
+          for (const commit of commits) {
+            if (
+              commit.sha &&
+              commit.commit?.message &&
+              !addedShas.has(commit.sha)
+            ) {
+              const commitAuthorDate =
+                commit.commit.author?.date || event.created_at;
+              recentCommits.push({
+                sha: commit.sha,
+                message: commit.commit.message.split("\n")[0],
+                repo: repoName,
+                date: commitAuthorDate,
+              });
+              addedShas.add(commit.sha);
+            }
+          }
+        } else {
+          const commitResponse = await fetch(
+            `https://api.github.com/repos/${repoName}/commits/${headSha}`,
+            {
+              headers: {
+                Authorization: `Bearer ${githubAccessToken}`,
+              },
+            }
+          );
+
+          if (commitResponse.ok) {
+            const commitData = await commitResponse.json();
+            if (
+              commitData.sha &&
+              commitData.commit?.message &&
+              !addedShas.has(commitData.sha)
+            ) {
+              recentCommits.push({
+                sha: commitData.sha,
+                message: commitData.commit.message.split("\n")[0],
+                repo: repoName,
+                date: event.created_at,
+              });
+              addedShas.add(commitData.sha);
+            }
+          }
         }
-      }
+      } catch (error) {}
     }
   }
+
+  recentCommits.sort((a, b) => {
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
+  });
 
   return recentCommits;
 }
 
-// Utility to get GitHub access token from cookies (client-side)
 export function getGithubAccessTokenFromCookie(): string | undefined {
   if (typeof document === "undefined") return undefined;
   const match = document.cookie.match(/(?:^|; )github_access_token=([^;]*)/);

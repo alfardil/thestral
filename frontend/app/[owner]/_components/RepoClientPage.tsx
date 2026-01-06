@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/hooks/business/useAuth";
 import { getGithubAccessTokenFromCookie } from "@/lib/utils/api/fetchRepos";
 import { Menu } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { GitHubLoginButton } from "@/components/features/auth/LoginButton";
 import { DiagramSection } from "@/app/[owner]/_components/DiagramSection";
 import { ReadmeSection } from "@/app/[owner]/_components/ReadmeSection";
@@ -33,6 +33,16 @@ export default function RepoClientPage({
   const [expanded, setExpanded] = useState<{ [key: string]: boolean }>({});
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarMobile, setSidebarMobile] = useState(false);
+  const [directoryWidth, setDirectoryWidth] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("directoryWidth");
+      return saved ? parseInt(saved, 10) : 280;
+    }
+    return 280;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeStartRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const explorerHeight = 600;
 
   useEffect(() => {
@@ -44,6 +54,46 @@ export default function RepoClientPage({
       }
     }
   }, [user, owner, repo, addAnalyzedReposCount]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !resizeStartRef.current || !containerRef.current) return;
+      
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const deltaX = e.clientX - resizeStartRef.current.startX;
+      const newWidth = resizeStartRef.current.startWidth + deltaX;
+      
+      const minWidth = 200;
+      const maxWidth = 600;
+      const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+      setDirectoryWidth(clampedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      resizeStartRef.current = null;
+    };
+
+    if (isResizing) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizing]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && !isResizing) {
+      localStorage.setItem("directoryWidth", directoryWidth.toString());
+    }
+  }, [directoryWidth, isResizing]);
 
   const handleFileClick = async (filePath: string) => {
     setSelectedFile(filePath);
@@ -131,7 +181,8 @@ export default function RepoClientPage({
           <div className="flex gap-6">
             <div className="w-full">
               <div
-                className="bg-gradient-to-r from-[#0a0a0a] to-[#0f0f0f] mb-8 mt-4 flex flex-col relative select-none rounded-xl border border-white/10 overflow-hidden"
+                ref={containerRef}
+                className="bg-gradient-to-r from-[#0a0a0a] to-[#0f0f0f] mb-8 mt-4 flex flex-col relative rounded-xl border border-white/10 overflow-hidden"
                 style={{
                   height: explorerHeight,
                   minHeight: 120,
@@ -139,8 +190,10 @@ export default function RepoClientPage({
                 }}
               >
                 <div className="flex h-full">
-                  {/* Directory Panel */}
-                  <div className="w-[280px] border-r border-white/10 flex flex-col bg-gradient-to-b from-[#0f0f0f] to-[#0a0a0a]">
+                  <div
+                    className="flex flex-col bg-gradient-to-b from-[#0f0f0f] to-[#0a0a0a] relative border-r border-white/10 select-none"
+                    style={{ width: `${directoryWidth}px`, minWidth: "200px", maxWidth: "600px" }}
+                  >
                     <div className="bg-gradient-to-r from-[#0a0a0a] to-[#111] border-b border-white/10 p-2 flex items-center">
                       <div className="w-1.5 h-1.5 bg-blue-500/60 rounded-full mr-2"></div>
                       <h2 className="text-xs font-mono text-white/60 tracking-wider uppercase">
@@ -178,6 +231,23 @@ export default function RepoClientPage({
                           />
                         </div>
                       )}
+                    </div>
+                    <div
+                      className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500/30 transition-colors group z-10"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        if (containerRef.current) {
+                          resizeStartRef.current = {
+                            startX: e.clientX,
+                            startWidth: directoryWidth,
+                          };
+                          setIsResizing(true);
+                        }
+                      }}
+                    >
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="w-0.5 h-8 bg-white/20 group-hover:bg-blue-500/60 rounded transition-colors opacity-0 group-hover:opacity-100" />
+                      </div>
                     </div>
                   </div>
 

@@ -4,9 +4,12 @@ import { useAnalyze } from "@/lib/hooks/business/useAnalyze";
 import {
   forwardRef,
   useEffect,
+  useLayoutEffect,
   useImperativeHandle,
   useRef,
   useState,
+  useMemo,
+  useCallback,
 } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -81,16 +84,20 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
   ({ owner, repo, branch = "main", accessToken, selectedFilePath }, ref) => {
     const [question, setQuestion] = useState("");
     const { analyzeRepoWithRAG, loading, error, response } = useAnalyze();
+    const [isAtBottom, setIsAtBottom] = useState(true);
 
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const previousScrollHeightRef = useRef<number>(0);
+    const isScrollingRef = useRef<boolean>(false);
+    const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const handleSubmit = async (e?: React.FormEvent) => {
       e?.preventDefault();
       if (!question.trim()) return;
 
       const currentQuestion = question;
-      setQuestion(""); // Clear input immediately
+      setQuestion("");
 
       // console.log("Right before API call - question:", currentQuestion);
       // console.log("Right before API call - selectedFilePath:", selectedFilePath);
@@ -120,7 +127,6 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
       },
     }));
 
-    // Auto-resize textarea
     useEffect(() => {
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
@@ -128,18 +134,84 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
       }
     }, [question]);
 
-    useEffect(() => {
-      if (chatContainerRef.current) {
-        chatContainerRef.current.scrollTop =
-          chatContainerRef.current.scrollHeight;
+    const markdownContent = useMemo(() => response, [response]);
+
+    useLayoutEffect(() => {
+      const container = chatContainerRef.current;
+      if (!container) return;
+
+      const currentScrollHeight = container.scrollHeight;
+      const { scrollTop, clientHeight } = container;
+      const wasAtBottom = currentScrollHeight - scrollTop - clientHeight < 150;
+      const contentGrew = currentScrollHeight > previousScrollHeightRef.current;
+
+      if ((wasAtBottom && contentGrew) || !response) {
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+
+        scrollTimeoutRef.current = setTimeout(() => {
+          if (container && !isScrollingRef.current) {
+            isScrollingRef.current = true;
+            const targetScroll = container.scrollHeight;
+
+            requestAnimationFrame(() => {
+              if (container) {
+                container.scrollTo({
+                  top: targetScroll,
+                  behavior: "smooth",
+                });
+
+                setTimeout(() => {
+                  isScrollingRef.current = false;
+                }, 500);
+              }
+            });
+
+            setIsAtBottom(true);
+          }
+        }, 50);
       }
+
+      previousScrollHeightRef.current = currentScrollHeight;
+
+      return () => {
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+      };
     }, [response, error, loading]);
+
+    useEffect(() => {
+      const container = chatContainerRef.current;
+      if (!container) return;
+
+      const checkScrollPosition = () => {
+        if (isScrollingRef.current) return;
+
+        const { scrollTop, scrollHeight, clientHeight } = container;
+        const threshold = 150;
+        const isNearBottom =
+          scrollHeight - scrollTop - clientHeight < threshold;
+        setIsAtBottom(isNearBottom);
+      };
+
+      container.addEventListener("scroll", checkScrollPosition, {
+        passive: true,
+      });
+      checkScrollPosition();
+
+      return () => {
+        container.removeEventListener("scroll", checkScrollPosition);
+      };
+    }, []);
 
     return (
       <div className="flex flex-col h-full">
         <div
           ref={chatContainerRef}
           className="flex-1 overflow-y-auto px-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent pb-32"
+          style={{ scrollBehavior: "smooth" }}
         >
           {error && (
             <div className="flex items-start gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
@@ -155,14 +227,59 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
             </div>
           )}
 
-          {response && (
+          {markdownContent && (
             <div className="space-y-4">
               <div className="p-4 border border-white/10 rounded-lg bg-white/5">
                 <div className="prose prose-invert max-w-none text-white/90">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[]}
                     components={
                       {
+                        pre: ({ children, ...props }: any) => {
+                          const codeElement = Array.isArray(children)
+                            ? children.find(
+                                (child: any) =>
+                                  child?.type === "code" ||
+                                  child?.props?.className?.includes("language-")
+                              )
+                            : children?.props?.children;
+
+                          if (codeElement?.props) {
+                            const { className, children: codeChildren } =
+                              codeElement.props;
+                            const match = /language-(\w+)/.exec(
+                              className || ""
+                            );
+                            if (match) {
+                              let codeString = "";
+                              if (Array.isArray(codeChildren)) {
+                                codeString = codeChildren
+                                  .map((child: any) => {
+                                    if (typeof child === "string") return child;
+                                    if (
+                                      typeof child === "object" &&
+                                      child?.props?.children
+                                    ) {
+                                      return String(child.props.children);
+                                    }
+                                    return String(child);
+                                  })
+                                  .join("");
+                              } else {
+                                codeString = String(codeChildren);
+                              }
+                              codeString = codeString.replace(/\n$/, "").trim();
+                              return (
+                                <CodeBlock
+                                  code={codeString}
+                                  language={match[1]}
+                                />
+                              );
+                            }
+                          }
+                          return <pre {...props}>{children}</pre>;
+                        },
                         code({
                           node,
                           inline,
@@ -171,14 +288,35 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
                           ...props
                         }: any) {
                           const match = /language-(\w+)/.exec(className || "");
-                          return !inline && match ? (
-                            <CodeBlock
-                              code={String(children).replace(/\n$/, "")}
-                              language={match[1]}
-                            />
-                          ) : (
+                          if (!inline && match) {
+                            let codeString = "";
+                            if (Array.isArray(children)) {
+                              codeString = children
+                                .map((child) => {
+                                  if (typeof child === "string") return child;
+                                  if (
+                                    typeof child === "object" &&
+                                    child?.props?.children
+                                  ) {
+                                    return String(child.props.children);
+                                  }
+                                  return String(child);
+                                })
+                                .join("");
+                            } else {
+                              codeString = String(children);
+                            }
+                            codeString = codeString.replace(/\n$/, "").trim();
+                            return (
+                              <CodeBlock
+                                code={codeString}
+                                language={match[1]}
+                              />
+                            );
+                          }
+                          return (
                             <code
-                              className="bg-white/10 border border-white/20 rounded px-1.5 py-0.5 text-sm font-mono"
+                              className="bg-white/10 border border-white/20 rounded px-1.5 py-0.5 text-sm font-mono break-words"
                               {...props}
                             >
                               {children}
@@ -195,7 +333,7 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
                         ),
                         h1: ({ children, ...props }: any) => (
                           <h1
-                            className="text-lg font-semibold text-white mb-3 mt-5 first:mt-0 text-base border-b border-white/10 pb-2"
+                            className="text-base font-semibold text-white mb-3 mt-5 first:mt-0 border-b border-white/10 pb-2"
                             {...props}
                           >
                             {children}
@@ -203,7 +341,7 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
                         ),
                         h2: ({ children, ...props }: any) => (
                           <h2
-                            className="text-base font-semibold text-white mb-2 mt-4 first:mt-0 text-sm text-white/90"
+                            className="text-sm font-semibold text-white/90 mb-2 mt-4 first:mt-0"
                             {...props}
                           >
                             {children}
@@ -211,7 +349,7 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
                         ),
                         h3: ({ children, ...props }: any) => (
                           <h3
-                            className="text-sm font-semibold text-white mb-2 mt-3 first:mt-0 text-xs text-white/80"
+                            className="text-xs font-semibold text-white/80 mb-2 mt-3 first:mt-0"
                             {...props}
                           >
                             {children}
@@ -269,14 +407,14 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
                       } as any
                     }
                   >
-                    {response}
+                    {markdownContent}
                   </ReactMarkdown>
                 </div>
               </div>
             </div>
           )}
 
-          {loading && (
+          {loading && !response && (
             <div className="flex items-center gap-3 p-3 border border-white/10 rounded-lg bg-white/5">
               <div className="flex-1 space-y-2">
                 <div className="flex items-center gap-2">
@@ -307,7 +445,11 @@ const MarkChat = forwardRef<FunctionAnalysisChatRef, FunctionAnalysisChatProps>(
 
         <form
           onSubmit={handleSubmit}
-          className="w-full px-4 py-3 rounded-lg bg-white/5 backdrop-blur-sm border border-white/10 fixed bottom-6 left-1/2 transform -translate-x-1/2 max-w-[360px]"
+          className={`w-full px-4 py-3 rounded-lg bg-white/5 backdrop-blur-sm border border-white/10 fixed bottom-6 left-1/2 transform -translate-x-1/2 max-w-[360px] transition-all duration-300 ${
+            isAtBottom || !response
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-4 pointer-events-none"
+          }`}
           style={{
             zIndex: 60,
             boxShadow: "0 4px 16px 0 rgba(0, 0, 0, 0.3)",

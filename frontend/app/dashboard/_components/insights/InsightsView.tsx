@@ -27,33 +27,32 @@ export function InsightsView({
   const totalCommitPages = Math.ceil(recentCommits.length / commitsPerPage);
 
   const commitActivityData = (() => {
-    // Use current exact date and time
     const now = new Date();
 
-    // Create array of last 7 days, starting from 6 days ago
     const last7Days = Array.from({ length: 7 }).map((_, i) => {
       const d = new Date(now);
-      d.setDate(d.getDate() - (6 - i)); // 6 days ago to today
+      d.setDate(d.getDate() - (6 - i));
       return d;
     });
 
-    // Map each date to its data point
     const chartData = last7Days.map((day) => {
       const dayName = day.toLocaleDateString("en-US", { weekday: "short" });
       return {
         name: dayName,
-        date: day.toISOString(), // Full ISO string for comparison
+        date: day.toISOString(),
         commits: 0,
       };
     });
 
-    // Increment commits for matching days
     recentCommits.forEach((commit) => {
       const commitDate = new Date(commit.date);
       const commitDayString = commitDate.toISOString().split("T")[0];
 
       const dayData = chartData.find(
-        (d) => d.date.split("T")[0] === commitDayString
+        (d) => {
+          const chartDateUTC = new Date(d.date).toISOString().split("T")[0];
+          return chartDateUTC === commitDayString;
+        }
       );
       if (dayData) {
         dayData.commits += 1;
@@ -66,11 +65,8 @@ export function InsightsView({
   return (
     <section className="space-y-8">
 
-
-      {/* Stat cards - Gotham-inspired design */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-[#0a0a0a] border border-white/10 rounded-lg p-6 relative overflow-hidden group hover:border-white/20 transition-all duration-300">
-          {/* Background accent */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-500/5 to-transparent rounded-full"></div>
           
           <div className="relative z-10">
@@ -88,7 +84,6 @@ export function InsightsView({
         </div>
 
         <div className="bg-[#0a0a0a] border border-white/10 rounded-lg p-6 relative overflow-hidden group hover:border-white/20 transition-all duration-300">
-          {/* Background accent */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-purple-500/5 to-transparent rounded-full"></div>
           
           <div className="relative z-10">
@@ -106,7 +101,6 @@ export function InsightsView({
         </div>
 
         <div className="bg-[#0a0a0a] border border-white/10 rounded-lg p-6 relative overflow-hidden group hover:border-white/20 transition-all duration-300">
-          {/* Background accent */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-green-500/5 to-transparent rounded-full"></div>
           
           <div className="relative z-10">
@@ -124,9 +118,7 @@ export function InsightsView({
         </div>
       </div>
 
-      {/* Commits and Activity side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Latest Commits List */}
         <div className="bg-[#0a0a0a] border border-white/10 rounded-lg p-6">
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -175,7 +167,6 @@ export function InsightsView({
             )}
           </div>
 
-          {/* Controls for commits */}
           <div className="mt-6 flex justify-between items-center pt-4 border-t border-white/10">
             <div>
               {!commitsExpanded && recentCommits.length > 3 && (
@@ -225,7 +216,6 @@ export function InsightsView({
           </div>
         </div>
 
-        {/* Commit Activity Chart */}
         <div className="bg-[#0a0a0a] border border-white/10 rounded-lg p-6">
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
